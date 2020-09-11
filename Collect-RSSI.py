@@ -17,8 +17,11 @@ beacons4Server = {}
 seq = 0
 # byteData = B""
 
+
+
 def rcvdBeacon():
     global seq
+    global thread_kill
     dev_id = 0
     try:
         sock = bluez.hci_open_dev(dev_id)
@@ -33,7 +36,7 @@ def rcvdBeacon():
     #Scans for iBeacons
     try:
         while True:
-            returnedList = ScanUtility.parse_events(sock, 10)
+            returnedList = ScanUtility.parse_events(sock, 100)
             #print(time.time(), returnedList)
             
             if returnedList:
@@ -54,6 +57,9 @@ def rcvdBeacon():
                     beacons4Server[item['uuid']] = [0.0, -1]
 
             returnedList.clear()
+            
+            if thread_kill:
+                break
                 #t=time.time()
     except KeyboardInterrupt:
         pass
@@ -64,6 +70,7 @@ def collectRSSI():
     # client.settimeout(0.2)
     currSeq = 0
     prevSeq = 0
+    count = 0
     while True:
         message = ""
 
@@ -75,6 +82,7 @@ def collectRSSI():
         if currSeq != -1 and currSeq != prevSeq:
             print(message)
             prevSeq = currSeq
+            count += 1
             with open('rssidata.csv', 'a') as f:
                 f.write(message)
         else:
@@ -87,11 +95,16 @@ def collectRSSI():
         # client.sendto(encodedMsg, ('192.168.0.5', 6000)) # 2001:db8:100:15a::3
 
         # print("message sent!")
+        
+        if count == 500:
+            thread_kill = True
+            break
+        
         time.sleep(0.02)
 
 if __name__ == "__main__":
     # rcvdBeacon()
-
+    thread_kill = False
     rcvdBeaconTh = threading.Thread(target=rcvdBeacon, args=())
     rcvdBeaconTh.start()
 
